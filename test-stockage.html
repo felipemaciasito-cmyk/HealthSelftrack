@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>Test stockage</title>
+<style>
+  :root{
+    --bg:#0E1116; --surface:#171C24; --surface2:#1F2630; --border:#2A323D;
+    --text:#E8EBEF; --muted:#8A94A3; --ember:#FF6A3D; --teal:#2DD4BF;
+    --green:#4ADE80; --red:#F87171;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;
+    padding:calc(env(safe-area-inset-top) + 22px) 18px calc(env(safe-area-inset-bottom) + 30px);
+    min-height:100vh;
+  }
+  h1{font-size:20px;font-weight:800;margin-bottom:4px}
+  .sub{font-size:12.5px;color:var(--muted);margin-bottom:20px;line-height:1.5}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:15px;margin-bottom:12px}
+  .label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.14em;margin-bottom:8px}
+
+  .mode{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:700}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .dot.on{background:var(--green);box-shadow:0 0 10px var(--green)}
+  .dot.off{background:var(--ember);box-shadow:0 0 10px var(--ember)}
+
+  .verdict{border-radius:18px;padding:17px;margin-bottom:12px;border:1px solid}
+  .verdict.good{background:#4ADE8014;border-color:#4ADE8066}
+  .verdict.bad{background:#F8717114;border-color:#F8717166}
+  .verdict.wait{background:var(--surface);border-color:var(--border)}
+  .verdict .vt{font-size:16px;font-weight:800;margin-bottom:5px}
+  .verdict.good .vt{color:var(--green)}
+  .verdict.bad .vt{color:var(--red)}
+  .verdict .vd{font-size:12.5px;line-height:1.55;color:var(--text);opacity:.85}
+
+  .row{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+  .row:last-child{border-bottom:none}
+  .row .k{color:var(--muted);font-size:12px}
+  .row .v{font-weight:700;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+  .v.ok{color:var(--teal)} .v.none{color:var(--muted);opacity:.6}
+
+  button{
+    width:100%;padding:15px;border-radius:15px;border:none;
+    background:var(--teal);color:#07100E;font-size:15px;font-weight:800;
+    font-family:inherit;margin-top:6px;
+  }
+  button:active{transform:scale(.98)}
+  button.ghost{background:transparent;border:1px solid var(--border);color:var(--muted);font-weight:700}
+
+  .keys{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted);line-height:1.8;word-break:break-all}
+  .empty{color:var(--muted);font-size:12.5px;font-style:italic}
+</style>
+</head>
+<body>
+  <h1>Test de stockage</h1>
+  <div class="sub">Cette page vérifie si elle voit les données de ton application Journal d'entraînement.</div>
+
+  <div class="card">
+    <div class="label">COMMENT CETTE PAGE EST OUVERTE</div>
+    <div class="mode"><span class="dot" id="modeDot"></span><span id="modeTxt">…</span></div>
+  </div>
+
+  <div class="verdict wait" id="verdict">
+    <div class="vt" id="verdictTitle">Analyse…</div>
+    <div class="vd" id="verdictDesc"></div>
+  </div>
+
+  <div class="card">
+    <div class="label">DONNÉES DE L'APPLI TROUVÉES</div>
+    <div id="appData"></div>
+  </div>
+
+  <div class="card">
+    <div class="label">TOUTES LES CLÉS VISIBLES</div>
+    <div class="keys" id="allKeys"></div>
+  </div>
+
+  <button id="refresh">Rafraîchir</button>
+  <button class="ghost" id="marker">Écrire un repère de test</button>
+
+<script>
+(function(){
+  var PREFIX = 'pdm:';
+
+  function standalone(){
+    return (window.navigator.standalone === true) ||
+           (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  }
+
+  function safeLS(){
+    try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); return true; }
+    catch(e){ return false; }
+  }
+
+  function read(key){
+    try { return localStorage.getItem(PREFIX + key); } catch(e){ return null; }
+  }
+
+  function parse(key, fallback){
+    var raw = read(key);
+    if(raw === null) return null;
+    try { return JSON.parse(raw); } catch(e){ return fallback; }
+  }
+
+  function render(){
+    // mode d'ouverture
+    var sa = standalone();
+    document.getElementById('modeDot').className = 'dot ' + (sa ? 'on' : 'off');
+    document.getElementById('modeTxt').textContent = sa
+      ? "Depuis l'écran d'accueil (mode app)"
+      : "Dans Safari (onglet normal)";
+
+    // donnees de l'appli
+    var weights   = parse('ft:weightLog', []);
+    var sessions  = parse('ft:sessions', []);
+    var meals     = parse('ft:meals', []);
+    var supps     = parse('ft:supplements', {});
+
+    var lastW = (weights && weights.length) ? weights[weights.length-1] : null;
+
+    var rows = [
+      ['Pesées enregistrées', weights ? weights.length : null],
+      ['Dernier poids', lastW ? (lastW.kg + ' kg') : null],
+      ['Séances enregistrées', sessions ? sessions.length : null],
+      ['Repas enregistrés', meals ? meals.length : null],
+      ['Jours avec compléments', supps ? Object.keys(supps).length : null]
+    ];
+
+    var html = '';
+    for(var i=0;i<rows.length;i++){
+      var val = rows[i][1];
+      var has = val !== null && val !== undefined;
+      html += '<div class="row"><span class="k">' + rows[i][0] + '</span>' +
+              '<span class="v ' + (has ? 'ok' : 'none') + '">' +
+              (has ? val : 'rien') + '</span></div>';
+    }
+    document.getElementById('appData').innerHTML = html;
+
+    // toutes les cles
+    var keys = [];
+    try {
+      for(var j=0;j<localStorage.length;j++){
+        var k = localStorage.key(j);
+        if(k && k.indexOf(PREFIX) === 0) keys.push(k);
+      }
+    } catch(e){}
+    document.getElementById('allKeys').innerHTML = keys.length
+      ? keys.join('<br/>')
+      : '<span class="empty">Aucune clé trouvée.</span>';
+
+    // verdict
+    var v = document.getElementById('verdict');
+    var vt = document.getElementById('verdictTitle');
+    var vd = document.getElementById('verdictDesc');
+
+    if(!safeLS()){
+      v.className = 'verdict bad';
+      vt.textContent = 'Stockage indisponible';
+      vd.textContent = "Le navigateur bloque le stockage local. Si tu es en navigation privée, réessaie dans un onglet normal.";
+    } else if(keys.length > 0){
+      v.className = 'verdict good';
+      vt.textContent = 'Données partagées ✓';
+      vd.textContent = "Cette page voit les données de ton appli. Une page d'ajout rapide séparée pourrait donc écrire directement dans ton journal.";
+    } else {
+      v.className = 'verdict bad';
+      vt.textContent = 'Aucune donnée visible';
+      vd.textContent = "Cette page ne voit pas les données de l'appli. Soit l'appli n'a jamais été ouverte sur cet appareil, soit iOS lui a donné un stockage séparé — dans ce cas il faudra intégrer l'ajout rapide à l'intérieur de l'appli.";
+    }
+  }
+
+  document.getElementById('refresh').addEventListener('click', render);
+
+  document.getElementById('marker').addEventListener('click', function(){
+    try {
+      localStorage.setItem(PREFIX + 'test:marqueur', new Date().toISOString());
+      render();
+    } catch(e){
+      alert("Impossible d'écrire : " + e.message);
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
