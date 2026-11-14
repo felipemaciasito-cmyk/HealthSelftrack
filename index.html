@@ -138,6 +138,32 @@
     .df-stepper button:disabled{opacity:.3}
     .df-stepper output{font-size:13px;font-weight:600;min-width:66px;text-align:center;color:#E8EBEF}
     .df-confirm{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13.5px;padding:10px 12px;border-radius:12px;background:rgba(248,113,113,.1);color:#E8EBEF}
+    /* Fin de défi : compteur, ondes, bilan « Pulsation » (rythme ×3 via --ts) */
+    .df-big{transform-origin:left 70%}
+    .df-pop{animation:dfPop 1.8s cubic-bezier(.34,1.56,.64,1)}
+    @keyframes dfPop{0%{transform:scale(1)}40%{transform:scale(1.14)}70%{transform:scale(.98)}100%{transform:scale(1)}}
+    .df-glow{text-shadow:0 0 30px var(--c)}
+    .df-fx{position:fixed;inset:0;z-index:69;pointer-events:none;overflow:hidden}
+    .df-wave{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;border:2px solid var(--wc);animation:dfWave calc(1.1s * var(--ts,3)) cubic-bezier(.2,.7,.3,1) both}
+    @keyframes dfWave{from{transform:scale(.3);opacity:.9}to{transform:scale(3.4);opacity:0}}
+    .df-win{position:fixed;inset:0;z-index:70;background:var(--wc);color:var(--wi);display:grid;place-items:center;padding:calc(env(safe-area-inset-top) + 28px) 24px calc(env(safe-area-inset-bottom) + 28px);opacity:0;animation:dfPulseIn calc(.5s * var(--ts,3)) linear forwards}
+    @keyframes dfPulseIn{0%{opacity:0}6%{opacity:.3}30%{opacity:.12}46%{opacity:.5}66%{opacity:.34}100%{opacity:1}}
+    .df-win-in{display:grid;justify-items:center;text-align:center;gap:14px;width:100%;max-width:420px}
+    .df-win-in>*{opacity:0;transform:translateY(14px) scale(.96);transition:opacity calc(.35s * var(--ts,3)) ease,transform calc(.45s * var(--ts,3)) cubic-bezier(.2,1.3,.4,1)}
+    .df-win.df-show .df-win-in>*{opacity:1;transform:none}
+    .df-win.df-show .df-win-in>:nth-child(2){transition-delay:calc(.08s * var(--ts,3))}
+    .df-win.df-show .df-win-in>:nth-child(3){transition-delay:calc(.15s * var(--ts,3))}
+    .df-win.df-show .df-win-in>:nth-child(4){transition-delay:calc(.23s * var(--ts,3))}
+    .df-win.df-show .df-win-in>:nth-child(5){transition-delay:calc(.35s * var(--ts,3))}
+    .df-win:not(.df-show) .df-win-btn{pointer-events:none}
+    .df-win-check{width:86px;height:86px;border-radius:50%;background:var(--wi);color:var(--wc);display:grid;place-items:center}
+    .df-win-k{font-size:12.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+    .df-win-t{font-size:30px;font-weight:800;line-height:1.1;letter-spacing:-.01em;text-wrap:balance}
+    .df-win-stats{display:grid;gap:8px;width:100%;margin-top:6px}
+    .df-win-stats div{display:grid;gap:2px}
+    .df-win-stats b{font-size:26px;font-weight:800}
+    .df-win-stats span{font-size:11.5px;font-weight:600;opacity:.8}
+    .df-win-btn{margin-top:12px;width:100%;height:48px;border-radius:14px;border:0;background:var(--wi);color:var(--wc);font-size:16px;font-weight:800}
     @media (prefers-reduced-motion:reduce){.df-root *,.df-ov,.df-ov *{transition-duration:.01ms!important;animation-duration:.01ms!important}}
   </style>
 </head>
@@ -1116,6 +1142,50 @@ function dfDeadline(g){if(g.done)return g.doneAt?"R\xE9ussi le "+dfDate(g.doneAt
 function dfVib(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
 function dfSortIcon(){var ce=a.default.createElement;return ce("svg",{viewBox:"0 0 24 24",width:18,height:18,fill:"none",stroke:"currentColor",strokeWidth:2,strokeLinecap:"round",strokeLinejoin:"round","aria-hidden":!0},ce("path",{d:"m21 16-4 4-4-4"}),ce("path",{d:"M17 20V4"}),ce("path",{d:"m3 8 4-4 4 4"}),ce("path",{d:"M7 4v16"}))}
 
+/* ===== Fin de défi : compteur, ondes, puis bilan « Pulsation » (rythme ralenti ×3) ===== */
+var DF_TS=3;
+function dfDecimals(st){var s=String(st);return s.indexOf(".")<0?0:s.split(".")[1].length}
+/* Jours depuis la création : l'identifiant commence par la date de création (Date.now() en base 36) */
+function dfDays(g){var ts=parseInt(String(g&&g.id||"").slice(0,8),36);if(!(ts>15e11&&ts<Date.now()+864e5))return null;return Math.max(1,Math.ceil((Date.now()-ts)/864e5))}
+function dfInk(rgb){var v=rgb.match(/\d+/g).map(function(x){return dfLin(+x/255)}),L=.2126*v[0]+.7152*v[1]+.0722*v[2];return(L+.05)/.0556>=1.05/(L+.05)?"#0E1116":"#FFFFFF"}
+function dfTween(ms,step,done){var t0=performance.now();(function f(now){var k=ms>0?Math.min(1,(now-t0)/ms):1;step(1-Math.pow(1-k,3));if(k<1)requestAnimationFrame(f);else if(done)done()})(t0)}
+function dfCelebrate(o){
+  var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches,T=reduce?0:DF_TS;
+  var sx=o.sx,g=o.g,t=dfR2(dfNum(g.target)),from=Math.min(t,Math.max(0,dfNum(o.from))),dec=Math.max(dfDecimals(dfStep(g)),dfDecimals(t)),fac=Math.pow(10,dec);
+  var cur=sx.querySelector(".df-cur"),big=sx.querySelector(".df-big"),cov=sx.querySelector(".df-cover"),pct=sx.querySelector(".df-pctn");
+  var p0=cov?100-(parseFloat(cov.style.width)||0):(t>0?from/t*100:0),fx=null,win=null,closing=!1;
+  if(cov)cov.style.transition="none";
+  function cleanup(){if(cur)cur.classList.remove("df-glow");if(big)big.classList.remove("df-pop");if(cov)cov.style.transition=""}
+  /* 1. Le chiffre défile jusqu'à la cible, la barre se remplit */
+  dfTween(650*T,function(k){var v=Math.round((from+(t-from)*k)*fac)/fac,p=p0+(100-p0)*k;if(cur)cur.innerHTML=dfHTML(Math.min(v,t));if(cov)cov.style.width=100-p+"%";sx.style.setProperty("--c",dfColor(p));if(pct)pct.innerHTML=String(Math.round(p))},beat);
+  function beat(){
+    if(cur){cur.innerHTML=dfHTML(t);cur.classList.add("df-glow")}
+    if(big)big.classList.add("df-pop");
+    dfVib([20,40,30]);
+    if(!o.alive()){o.onCommit();cleanup();o.onClose();return}
+    var col=dfColor(100),ink=dfInk(col);
+    /* 2. Deux ondes partent du chiffre */
+    fx=document.createElement("div");fx.className="df-fx";fx.setAttribute("aria-hidden","true");fx.style.setProperty("--ts",T||.01);document.body.appendChild(fx);
+    if(cur&&T){var r=cur.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;[0,200].forEach(function(d){var w=document.createElement("span");w.className="df-wave";w.style.cssText="left:"+cx+"px;top:"+cy+"px;--wc:"+col+";animation-delay:"+d*T+"ms";fx.appendChild(w)})}
+    /* 3. Le fond du bilan s'allume sur chaque onde */
+    win=document.createElement("div");win.className="df-win";win.setAttribute("role","dialog");win.setAttribute("aria-label","D\xE9fi r\xE9ussi");win.style.cssText="--wc:"+col+";--wi:"+ink+";--ts:"+(T||.01);
+    var inn=document.createElement("div");inn.className="df-win-in";
+    inn.innerHTML='<span class="df-win-check"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div class="df-win-k">D\xE9fi r\xE9ussi</div><div class="df-win-t"></div><div class="df-win-stats"></div><button type="button" class="df-win-btn">Continuer</button>';
+    inn.querySelector(".df-win-t").textContent=g.title||"";
+    var days=dfDays(g),upd=(g.updates||0)+1,st=[{n:t,d:dec,l:(g.unit?g.unit+" ":"")+(t>1?"atteints":"atteint")}];
+    if(days)st.push({n:days,d:0,l:days>1?"jours":"jour"});
+    st.push({n:upd,d:0,l:upd>1?"mises \xE0 jour":"mise \xE0 jour"});
+    var box=inn.querySelector(".df-win-stats");box.style.gridTemplateColumns="repeat("+st.length+",1fr)";
+    st.forEach(function(s){var d=document.createElement("div"),b=document.createElement("b"),l=document.createElement("span");b.className="df-mono";b.innerHTML="0";b.dataset.n=s.n;b.dataset.d=s.d;l.textContent=s.l;d.appendChild(b);d.appendChild(l);box.appendChild(d)});
+    win.appendChild(inn);document.body.appendChild(win);
+    inn.querySelector(".df-win-btn").addEventListener("click",close);
+    /* 4. Bilan plein : le défi est enregistré, puis le contenu apparaît et les chiffres défilent */
+    setTimeout(function(){o.onCommit();cleanup();win.classList.add("df-show");setTimeout(function(){Array.prototype.forEach.call(box.querySelectorAll("b"),function(b){var n=+b.dataset.n,ff=Math.pow(10,+b.dataset.d);dfTween(600*T,function(k){b.innerHTML=dfHTML(Math.round(n*k*ff)/ff)},function(){b.innerHTML=dfHTML(n)})})},230*T)},500*T)
+  }
+  /* 5. « Continuer » : le bilan s'efface */
+  function close(){if(closing||!win||!win.classList.contains("df-show"))return;closing=!0;win.style.animation="none";win.style.opacity="1";win.getBoundingClientRect();win.style.transition="opacity "+300*T+"ms ease";win.style.opacity="0";setTimeout(function(){win.remove();fx&&fx.remove();o.onClose()},300*T+30)}
+}
+
 /* Enregistrement d'un défi depuis la fiche : ajout, modification, place (__pos) ou suppression (__delete) */
 function pdmSaveGoal(list,b){
   var arr=Array.isArray(list)?list.slice():[],g=Object.assign({},b),del=g.__delete,pos=g.__pos;
@@ -1169,12 +1239,13 @@ function yh({goals:goalsProp,setGoals,onAddFinal,onEditGoal}){
   var _u=a.useState(null),undo=_u[0],setUndo=_u[1];
   var track=a.useRef(null),idxRef=a.useRef(0),orderRef=a.useRef(order),goalsRef=a.useRef(goals),focusRef=a.useRef(null),lp=a.useRef(null),sc=a.useRef(null),busy=a.useRef(null),raf=a.useRef(0);
   idxRef.current=idx;orderRef.current=order;goalsRef.current=goals;
+  var alive=a.useRef(!0);a.useEffect(function(){alive.current=!0;return function(){alive.current=!1}},[]);
   function slides(){var t=track.current;return t?t.querySelectorAll(".df-slide"):[]}
   function scrollToIdx(i,smooth){var t=track.current,s=slides()[Math.max(0,Math.min(i,order.length-1))];if(!t||!s)return;t.scrollTo({left:s.offsetLeft-(t.clientWidth-s.offsetWidth)/2,behavior:smooth?"smooth":"auto"})}
   function fx(){var t=track.current;if(!t)return;var r=t.getBoundingClientRect();if(!r.width)return;var cx=r.left+r.width/2,best=idxRef.current,bd=1e9;slides().forEach(function(s,i){var q=s.getBoundingClientRect(),d=(q.left+q.width/2-cx)/q.width;s.style.setProperty("--d",Math.min(1,Math.abs(d)).toFixed(3));s.style.setProperty("--s",d<0?-1:1);if(Math.abs(d)<bd){bd=Math.abs(d);best=i}});if(best!==idxRef.current){idxRef.current=best;setIdx(best)}}
   function onScroll(){cancelLP();if(!raf.current)raf.current=requestAnimationFrame(function(){raf.current=0;fx()})}
   a.useLayoutEffect(function(){
-    if(focusRef.current){var id=focusRef.current;focusRef.current=null;var k=order.findIndex(function(x){return x!=="new"&&x.id===id});if(k>=0){idxRef.current=k;scrollToIdx(k,!1);if(k!==idx)setIdx(k)}}
+    if(focusRef.current){var id=focusRef.current;focusRef.current=null;var k=id==="__new"?order.indexOf("new"):order.findIndex(function(x){return x!=="new"&&x.id===id});if(k>=0){idxRef.current=k;scrollToIdx(k,!1);if(k!==idx)setIdx(k)}}
     else if(idx>order.length-1){idxRef.current=order.length-1;setIdx(order.length-1)}
     fx()
   });
@@ -1183,14 +1254,13 @@ function yh({goals:goalsProp,setGoals,onAddFinal,onEditGoal}){
   a.useEffect(function(){if(!undo)return;var tm=setTimeout(function(){setUndo(null)},4e3);return function(){clearTimeout(tm)}},[undo&&undo.k]);
   function patch(id,p){setGoals(goalsRef.current.map(function(x){return x.id===id?Object.assign({},x,p):x}))}
   /* Réussite : la barre se remplit, la carte part vers les atteints, la ligne « Annuler » apparaît */
-  function achieve(g,back){
+  function achieve(g,back,from){
     if(busy.current)return;busy.current=g.id;
-    var t=dfR2(dfNum(g.target));
-    patch(g.id,{current:String(t)});dfVib([20,40,30]);
-    setTimeout(function(){setLeaving(g.id);setTimeout(function(){
-      setGoals(goalsRef.current.map(function(x){return x.id===g.id?Object.assign({},x,{current:String(t),done:!0,doneAt:De(),updates:(x.updates||0)+1}):x}));
-      setLeaving(null);busy.current=null;setUndo({id:g.id,back:back,k:Date.now()})
-    },430)},320)
+    var t=dfR2(dfNum(g.target)),sx=track.current&&track.current.querySelector('.df-sx[data-gid="'+String(g.id).replace(/"/g,"")+'"]');
+    function commit(){var ord=orderRef.current,k=ord.findIndex(function(x){return x!=="new"&&x.id===g.id}),nx=k>=0?ord[k+1]:null;focusRef.current=nx==="new"?"__new":nx&&nx.id||null;setGoals(goalsRef.current.map(function(x){return x.id===g.id?Object.assign({},x,{current:String(t),done:!0,doneAt:De(),updates:(x.updates||0)+1}):x}))}
+    function finish(){busy.current=null;if(alive.current)setUndo({id:g.id,back:back,k:Date.now()})}
+    if(!sx){commit();finish();return}
+    dfCelebrate({sx:sx,g:g,from:from==null?back:from,alive:function(){return alive.current},onCommit:commit,onClose:finish})
   }
   function doUndo(){var u0=undo;if(!u0)return;setUndo(null);focusRef.current=u0.id;setGoals(goalsRef.current.map(function(x){if(x.id!==u0.id)return x;var y=Object.assign({},x,{done:!1,current:String(dfR2(u0.back))});delete y.doneAt;return y}))}
   function bump(g,dir){
@@ -1215,7 +1285,7 @@ function yh({goals:goalsProp,setGoals,onAddFinal,onEditGoal}){
     var s=sc.current;if(!s||e.pointerId!==s.pid)return;
     cancelAnimationFrame(s.raf);scrubApply(s);sc.current=null;s.el.classList.remove("df-drag");
     var p=s.val/s.t*100;s.sx.style.setProperty("--c",dfColor(p));var cv=s.sx.querySelector(".df-cover");if(cv)cv.style.width=100-p+"%";
-    if(s.val>=s.t&&s.cur0<s.t)achieve(s.g,s.cur0);
+    if(s.val>=s.t&&s.cur0<s.t)achieve(s.g,s.cur0,Math.max(0,dfR2(s.t-s.s)));
     else if(s.val!==s.cur0)patch(s.g.id,{current:String(s.val),updates:(s.g.updates||0)+1})
   }
   /* Appui long sur un défi : vue d'ensemble */
@@ -1257,7 +1327,7 @@ function yh({goals:goalsProp,setGoals,onAddFinal,onEditGoal}){
       dots.push(ce("button",{key:"dnew",type:"button",className:"df-dot df-dot-new"+(i===idx?" df-on":""),"aria-label":"Nouveau d\xE9fi",onClick:function(){scrollToIdx(i,!0)}},ce(Jt,{size:11,color:i===idx?u.text:u.muted,strokeWidth:3})));
       if(off.length){nodes.push(ce("div",{key:"sep",className:"df-sep","aria-hidden":!0},ce("span",null,"Atteints \xB7 "+off.length)));dots.push(ce("span",{key:"dgap",className:"df-dot-gap","aria-hidden":!0}))}
     }else{
-      nodes.push(ce("div",{key:it.id,className:"df-slide",onClickCapture:cap},ce("div",{className:"df-sx"+(leaving===it.id?" df-leaving":""),style:{"--c":dfColor(dfPct(it))},onPointerDown:function(e){lpDown(e,it)},onPointerMove:lpMove,onPointerUp:cancelLP,onPointerCancel:cancelLP,onPointerLeave:cancelLP},card(it,i))));
+      nodes.push(ce("div",{key:it.id,className:"df-slide",onClickCapture:cap},ce("div",{className:"df-sx"+(leaving===it.id?" df-leaving":""),"data-gid":it.id,style:{"--c":dfColor(dfPct(it))},onPointerDown:function(e){lpDown(e,it)},onPointerMove:lpMove,onPointerUp:cancelLP,onPointerCancel:cancelLP,onPointerLeave:cancelLP},card(it,i))));
       dots.push(ce("button",{key:"d"+it.id,type:"button",className:"df-dot"+(i===idx?" df-on":""),style:{background:dfColor(dfPct(it))},"aria-label":it.title||"D\xE9fi",onClick:function(){scrollToIdx(i,!0)}}))
     }
   });
